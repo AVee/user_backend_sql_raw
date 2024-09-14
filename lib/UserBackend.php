@@ -23,6 +23,7 @@ namespace OCA\UserBackendSqlRaw;
 
 use OC\User\Backend;
 use Psr\Log\LoggerInterface;
+use \PDO;
 
 class UserBackend implements \OCP\IUserBackend, \OCP\UserInterface
 
@@ -67,7 +68,7 @@ class UserBackend implements \OCP\IUserBackend, \OCP\UserInterface
      * Nextcloud if Backend::CHECK_PASSWORD is set.
      * @param $providedUsername
      * @param $providedPassword
-     * @return bool whether the provided password was correct for provided user
+     * @return string|false The uid on success false on failure
      */
     public function checkPassword($providedUsername, $providedPassword)
     {
@@ -80,14 +81,19 @@ class UserBackend implements \OCP\IUserBackend, \OCP\UserInterface
 
         $statement = $dbHandle->prepare($this->config->getQueryGetPasswordHashForUser());
         $statement->execute(['username' => $providedUsername]);
-        $retrievedPasswordHash = $statement->fetchColumn();
-
-        if ($retrievedPasswordHash === false) {
+        $retrievedRow = $statement->fetch(PDO::FETCH_NUM);
+        if ($retrievedRow === false || count($retrievedRow) == 0) {
             return false;
         }
 
+        $retrievedPasswordHash = $retrievedRow[0];
+
         if (password_verify($providedPassword, $retrievedPasswordHash)) {
-            return $providedUsername;
+            if (count($retrievedRow) > 1) {
+                return $retrievedRow[1];
+            } else {
+                return $providedUsername;
+            }
         } else {
             return false;
         }

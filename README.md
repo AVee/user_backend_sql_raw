@@ -50,7 +50,7 @@ This app has no user interface. All configuration is done via Nextcloud's system
    //'db_password' => 'thePasswordForTheDatabaseUser',
    //'db_password_file' => '/path/to/file/ContainingThePasswordForTheDatabaseUser',
    'queries' => array(
-       'get_password_hash_for_user' => 'SELECT password_hash FROM users_fqda WHERE fqda = :username',
+       'get_password_hash_for_user' => 'SELECT password_hash, fqda FROM users_fqda WHERE fqda = :username OR email = :username',
        'user_exists' => 'SELECT EXISTS(SELECT 1 FROM users_fqda WHERE fqda = :username)',
        'get_users' => 'SELECT fqda FROM users_fqda WHERE (fqda ILIKE :search) OR (display_name ILIKE :search)',
        //'set_password_hash_for_user' => 'UPDATE users SET password_hash = :new_password_hash WHERE local = split_part(:username, \'@\', 1) AND domain = split_part(:username, \'@\', 2)',
@@ -130,7 +130,10 @@ that will be used to read/write data.
 * queries use named parameters. You have to use the exact names as shown in the examples. For
  example, to retrieve the hash for a user, the query named `get_password_hash_for_user` will be
  used. Write your custom SQL query and simply put `:username` where you are referring to the
- username (aka uid) of the user trying to login.
+ username (aka uid) of the user trying to login. Optionally the query may return a second column
+ with the uid as nexcloud should use it. This allows you to accept multiple usernames (e.g. 
+ username and email, case insensitive usernames, etc) for a single account. This uid will then 
+ also be used in subsequent queries .If not present the username as entered will be used.
 * You don't need to supply all queries. For example, if you use the default user home simply leave
  the query `get_home` commented. This app will recognize this and
  [communicate](https://github.com/nextcloud/server/blob/316acc3cc313f4333fe29d136f9124f163b40dec/lib/public/UserInterface.php#L47)
@@ -138,7 +141,8 @@ that will be used to read/write data.
   * `user_exists` and `get_users` are required, the rest is optional.
   * For user authentication (i.e. login) you need at least `get_password_hash_for_user`,
     `user_exists` and `get_users`.
-* For all queries that read data, only the first column is interpreted.
+* For all queries that read data except get_password_hash_for_user (see above), only the first 
+  column is interpreted.
 * Two queries require a little bit of attention:
     1. `user_exists` should return a boolean. See the example on how to do this properly.
     2. `get_users` is a query that searches for usernames (e.g. *bob*) and display names (e.g. *Bob
